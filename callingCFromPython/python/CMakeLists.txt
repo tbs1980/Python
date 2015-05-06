@@ -1,3 +1,6 @@
+# http://bloerg.net/2012/11/10/cmake-and-distutils.html
+# http://stackoverflow.com/questions/18360245/python-c-compiling-shared-library-with-cmake-and-installing-with-distutils
+
 cmake_minimum_required(VERSION 2.8)
 
 find_package(PythonInterp REQUIRED)
