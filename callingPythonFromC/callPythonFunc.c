@@ -1,8 +1,15 @@
 #include <Python.h>
 #include <numpy/arrayobject.h>
+#include <stdio.h>
+#include <string.h>
 // Build an Eigen Vector from a pointer to data of a given size
 
 static PyObject * CalBackError;
+
+/*
+we expect the user to call this as result =callback_func(my_func),
+were my_func accepts a numpy vector as argument and returns a single number back
+ */
 
 static PyObject* callback_func(PyObject* self, PyObject* args) {
 
@@ -10,21 +17,43 @@ static PyObject* callback_func(PyObject* self, PyObject* args) {
 
     printf("number of arguments = %ld\n",TupleSize);
 
-    PyObject*   py_obj_low    = PyTuple_GetItem(args, 0);
+    if(TupleSize != 1)
+    {
+        PyErr_SetString(CalBackError, "Unexpected number of arguments");
+        return CalBackError;
+    }
 
-    PyObject*   py_arr_low    = PyArray_FROM_OTF(py_obj_low, NPY_DOUBLE, NPY_IN_ARRAY);
+    PyObject*   py_like_func  = PyTuple_GetItem(args,0);
 
-    double*     p_low_lims    = (double*) (PyArray_DATA(py_arr_low));
+    if (!PyCallable_Check(py_like_func))
+    {
+        PyErr_SetString(PyExc_TypeError, "parameter must be callable");
+        return NULL;
+    }
 
-    double evid = 0;
-    double err = 0;
+    // make vector of 10 elements
+    const int vect_size = 10;
+    double * vect = (double*) malloc(vect_size*sizeof(double));
 
-    PyObject*  return_evidence = PyFloat_FromDouble(evid);
-    PyObject*  return_error    = PyFloat_FromDouble(err);
-    Py_ssize_t tuple_size      = 2;
-    PyObject*  tuple_outputs   = PyTuple_Pack(tuple_size,return_evidence,return_error);
+    for(int i=0;i<vect_size;++i)
+    {
+        vect[i] = 1.;
+    }
 
-    return tuple_outputs;
+    int nd = 1;
+    npy_intp dims[1]={vect_size};
+    PyObject* in_vec = PyArray_SimpleNewFromData(nd,dims,NPY_DOUBLE,vect);
+    Py_ssize_t tuple_size = 1;
+    PyObject* args_tuple = PyTuple_Pack(tuple_size,in_vec);
+    PyObject* outputs = PyEval_CallObject(py_like_func,args_tuple);
+
+    double call_back_out = PyFloat_AsDouble(outputs);
+
+    printf("output of the callback = %f\n",call_back_out);
+
+    free(vect);
+
+    return Py_None;
 }
 
 static PyMethodDef CallBackMethods[] = {
