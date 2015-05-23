@@ -7,7 +7,7 @@
 static PyObject * CalBackError;
 
 /*
-we expect the user to call this as result =callback_func(my_func),
+we expect the user to call this as callback_func(my_func,result_val),
 were my_func accepts a numpy vector as argument and returns a single number back
  */
 
@@ -35,21 +35,35 @@ static PyObject* callback_func(PyObject* self, PyObject* args) {
     const int vect_size = 10;
     double * vect = (double*) malloc(vect_size*sizeof(double));
 
-    for(int i=0;i<vect_size;++i)
+    int i=0;
+    for(i=0;i<vect_size;++i)
     {
         vect[i] = 1.;
     }
 
+    // first argument
     int nd = 1;
     npy_intp dims[1]={vect_size};
     PyObject* in_vec = PyArray_SimpleNewFromData(nd,dims,NPY_DOUBLE,vect);
-    Py_ssize_t tuple_size = 1;
-    PyObject* args_tuple = PyTuple_Pack(tuple_size,in_vec);
-    PyObject* outputs = PyEval_CallObject(py_like_func,args_tuple);
 
+    // second argument
+    // we need to pass this as a numpy array so that it can get
+    // modified inside the python function.
+    double result_val=2;
+    npy_intp dims_ret[1]={1};
+    PyObject* ret_val = PyArray_SimpleNewFromData(nd,dims_ret,NPY_DOUBLE,&result_val);
+
+    Py_ssize_t tuple_size = 2;
+    PyObject* args_tuple = PyTuple_Pack(tuple_size,in_vec,ret_val);
+
+    // to collect the output returned
+    PyObject* outputs = PyEval_CallObject(py_like_func,args_tuple);
     double call_back_out = PyFloat_AsDouble(outputs);
 
-    printf("output of the callback = %f\n",call_back_out);
+    // print the returned value
+    printf("return of the callback = %f\n",call_back_out);
+    // print the modified value
+    printf("value modfied in the callback = %f\n",result_val);
 
     free(vect);
 
@@ -79,4 +93,5 @@ int main(int argc, char *argv[]) {
     Py_SetProgramName(argv[0]);
     Py_Initialize();
     initcallback_module();
+    return 0;
 }
